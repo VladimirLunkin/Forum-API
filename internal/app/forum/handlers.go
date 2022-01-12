@@ -9,12 +9,8 @@ import (
 	"tech-db-forum/internal/pkg/delivery"
 )
 
-type RepositoryInterface interface {
-	Create(newForum models.Forum) (models.Forum, error)
-}
-
 type Handlers struct {
-	ForumRepo RepositoryInterface
+	ForumRepo models.ForumRep
 	Logger    *zap.SugaredLogger
 }
 

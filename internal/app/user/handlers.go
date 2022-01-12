@@ -10,13 +10,8 @@ import (
 	"tech-db-forum/internal/pkg/delivery"
 )
 
-type RepositoryInterface interface {
-	CreateUser(newUser models.User) ([]models.User, error)
-	GetUserByNickname(nickname string) (user models.User, err error)
-}
-
 type Handlers struct {
-	ForumRepo RepositoryInterface
+	ForumRepo models.UserRep
 	Logger    *zap.SugaredLogger
 }
 

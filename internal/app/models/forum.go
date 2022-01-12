@@ -7,3 +7,7 @@ type Forum struct {
 	Posts   int64  `json:"posts"`
 	Threads int32  `json:"threads"`
 }
+
+type ForumRep interface {
+	Create(newForum Forum) (Forum, error)
+}
