@@ -59,8 +59,8 @@ func (repo *RepoPgx) GetUsersByUser(user models.User) (users []models.User) {
 }
 
 func (repo *RepoPgx) UpdateUser(newUserData models.User) (models.User, error) {
-    userExists, err := repo.GetUserByEmail(newUserData.Email)
-	if !userExists.IsEmpty() {
+	userExists, err := repo.GetUserByEmail(newUserData.Email)
+	if !userExists.IsEmpty() && newUserData.Nickname != userExists.Nickname {
 		return models.User{}, models.NewUserDataError
 	}
 

@@ -5,5 +5,5 @@ import (
 )
 
 func SetForumRouting(r *router.Router, h *Handlers) {
-	r.POST("/api/app/create", h.Create)
+	r.POST("/api/forum/create", h.Create)
 }

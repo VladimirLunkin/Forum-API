@@ -50,18 +50,22 @@ func (h *Handlers) GetUser(ctx *fasthttp.RequestCtx) {
 }
 
 func (h *Handlers) UpdateUser(ctx *fasthttp.RequestCtx) {
-	var newUserData models.User
-	err := json.Unmarshal(ctx.PostBody(), &newUserData)
+	newUserData, err := h.UserRepo.GetUserByNickname(fmt.Sprintf("%s", ctx.UserValue("nickname")))
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
+		return
+	}
+
+	err = json.Unmarshal(ctx.PostBody(), &newUserData)
 	if err != nil {
 		delivery.SendError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	newUserData.Nickname = fmt.Sprintf("%s", ctx.UserValue("nickname"))
 
 	user, err := h.UserRepo.UpdateUser(newUserData)
 	if err != nil {
 		if err == models.NewUserDataError {
-			delivery.Send(ctx, http.StatusConflict, err.Error())
+			delivery.SendError(ctx, http.StatusConflict, err.Error())
 			return
 		}
 		delivery.SendError(ctx, http.StatusNotFound, err.Error())
