@@ -33,8 +33,8 @@ func main() {
 	r := router.New()
 
 	user.SetUserRouting(r, &user.Handlers{
-		Logger:    logger,
-		ForumRepo: user.NewPgxRepository(getPostgres()),
+		Logger:   logger,
+		UserRepo: user.NewPgxRepository(getPostgres()),
 	})
 
 	forum.SetForumRouting(r, &forum.Handlers{

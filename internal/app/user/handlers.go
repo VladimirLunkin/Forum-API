@@ -11,8 +11,8 @@ import (
 )
 
 type Handlers struct {
-	ForumRepo models.UserRep
-	Logger    *zap.SugaredLogger
+	UserRepo models.UserRep
+	Logger   *zap.SugaredLogger
 }
 
 func (h *Handlers) CreateUser(ctx *fasthttp.RequestCtx) {
@@ -24,7 +24,7 @@ func (h *Handlers) CreateUser(ctx *fasthttp.RequestCtx) {
 	}
 	user.Nickname = fmt.Sprintf("%s", ctx.UserValue("nickname"))
 
-	users, err := h.ForumRepo.CreateUser(user)
+	users, err := h.UserRepo.CreateUser(user)
 	if err != nil {
 		if err == models.UserExistsError {
 			delivery.Send(ctx, http.StatusConflict, users)
@@ -40,8 +40,30 @@ func (h *Handlers) CreateUser(ctx *fasthttp.RequestCtx) {
 func (h *Handlers) GetUser(ctx *fasthttp.RequestCtx) {
 	nickname := fmt.Sprintf("%s", ctx.UserValue("nickname"))
 
-	user, err := h.ForumRepo.GetUserByNickname(nickname)
+	user, err := h.UserRepo.GetUserByNickname(nickname)
 	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, user)
+}
+
+func (h *Handlers) UpdateUser(ctx *fasthttp.RequestCtx) {
+	var newUserData models.User
+	err := json.Unmarshal(ctx.PostBody(), &newUserData)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+	newUserData.Nickname = fmt.Sprintf("%s", ctx.UserValue("nickname"))
+
+	user, err := h.UserRepo.UpdateUser(newUserData)
+	if err != nil {
+		if err == models.NewUserDataError {
+			delivery.Send(ctx, http.StatusConflict, err.Error())
+			return
+		}
 		delivery.SendError(ctx, http.StatusNotFound, err.Error())
 		return
 	}

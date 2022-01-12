@@ -14,4 +14,5 @@ func (u User) IsEmpty() bool {
 type UserRep interface {
 	CreateUser(newUser User) ([]User, error)
 	GetUserByNickname(nickname string) (User, error)
+	UpdateUser(newUserData User) (User, error)
 }
