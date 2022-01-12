@@ -20,6 +20,18 @@ func (repo *RepoPgx) Create(newForum models.Forum) (models.Forum, error) {
 		newForum.Title, newForum.User, newForum.Slug,
 	).Scan(&forum.Title, &forum.User, &forum.Slug, &forum.Posts, &forum.Threads)
 	if err != nil {
+		return models.Forum{}, models.SlugAlreadyExistsError
+	}
+
+	return forum, nil
+}
+
+func (repo *RepoPgx) GetForumBySlug(slug string) (models.Forum, error) {
+	var forum models.Forum
+	err := repo.DB.QueryRow(`SELECT "title", "user", "slug", "posts", "threads" FROM "forum"
+						WHERE "slug" = $1;`, slug,
+	).Scan(&forum.Title, &forum.User, &forum.Slug, &forum.Posts, &forum.Threads)
+	if err != nil {
 		return models.Forum{}, err
 	}
 
