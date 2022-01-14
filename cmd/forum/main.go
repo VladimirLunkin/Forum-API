@@ -40,7 +40,7 @@ func main() {
 	forum.SetForumRouting(r, &forum.Handlers{
 		Logger:    logger,
 		ForumRepo: forum.NewPgxRepository(getPostgres()),
-		UserRepo: user.NewPgxRepository(getPostgres()),
+		UserRepo:  user.NewPgxRepository(getPostgres()),
 	})
 
 	log.Fatal(fasthttp.ListenAndServe(":5000", r.Handler))
