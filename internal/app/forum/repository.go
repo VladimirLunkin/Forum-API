@@ -143,8 +143,7 @@ func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (p
 		}
 
 		if post.Parent != 0 {
-			id := -1
-			err := repo.DB.QueryRow(`SELECT "id" FROM "post" WHERE "thread" = $1 and "id" = $2;`, thread.Id, post.Parent).Scan(&id)
+			err := repo.DB.QueryRow(`SELECT "id" FROM "post" WHERE "thread" = $1 and "id" = $2;`, thread.Id, post.Parent).Err()
 			if err != nil {
 				return []models.Post{}, err
 			}
@@ -197,4 +196,39 @@ func (repo *RepoPgx) GetThreadBySlugOrId(slugOrId string) (thread models.Thread,
 		&thread.Created,
 	)
 	return
+}
+
+func (repo *RepoPgx) Vote(thread models.Thread, vote models.Vote) (models.Thread, error) {
+	var user int64
+	err := repo.DB.QueryRow(`SELECT "id" FROM "user" WHERE "nickname" = $1;`, vote.Nickname).Scan(&user)
+	if err != nil {
+		return models.Thread{}, err
+	}
+
+	fmt.Println("Thread ", thread.Id, thread.Author, thread.Votes)
+
+	var voteId int64
+	err = repo.DB.QueryRow(`SELECT "id" FROM "vote" WHERE "user" = $1 AND "thread" = $2`,
+		user, thread.Id).Scan(&voteId)
+	fmt.Println("----", err, voteId)
+
+	if err == nil && voteId != 0 {
+		err = repo.DB.QueryRow(`UPDATE "vote" SET "voice" = $1 WHERE "id" = $2;`,
+			vote.Voice, user).Err()
+		if err != nil {
+			return models.Thread{}, err
+		}
+		thread.Votes += 2*vote.Voice
+
+		return thread, nil
+	}
+
+	err = repo.DB.QueryRow(`INSERT INTO "vote" ("user", "thread", "voice") VALUES ($1, $2, $3);`,
+		user, thread.Id, vote.Voice).Err()
+	if err != nil {
+		return models.Thread{}, err
+	}
+	thread.Votes += vote.Voice
+
+	return thread, nil
 }

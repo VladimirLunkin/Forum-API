@@ -32,6 +32,11 @@ type Post struct {
 	Created  time.Time `json:"created,omitempty"`
 }
 
+type Vote struct {
+	Nickname string `json:"nickname"`
+	Voice int32 `json:"voice"`
+}
+
 type ForumRep interface {
 	CreateForum(newForum Forum) (Forum, error)
 	GetForumBySlug(slug string) (Forum, error)
@@ -39,4 +44,5 @@ type ForumRep interface {
 	GetThreads(slug, limit, since, desc string) ([]Thread, error)
 	CreatePosts(thread Thread, newPost []Post) ([]Post, error)
 	GetThreadBySlugOrId(slugOrId string) (Thread, error)
+	Vote(thread Thread, vote Vote) (Thread, error)
 }

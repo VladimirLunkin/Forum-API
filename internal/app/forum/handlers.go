@@ -145,3 +145,27 @@ func (h *Handlers) CreatePosts(ctx *fasthttp.RequestCtx) {
 
 	delivery.Send(ctx, http.StatusCreated, posts)
 }
+
+func (h *Handlers) Vote(ctx *fasthttp.RequestCtx) {
+	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
+	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	var vote models.Vote
+	err = json.Unmarshal(ctx.PostBody(), &vote)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusBadRequest, "")
+		return
+	}
+
+	thread, err = h.ForumRepo.Vote(thread, vote)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, thread)
+}

@@ -11,4 +11,5 @@ func SetForumRouting(r *router.Router, h *Handlers) {
 	r.GET("/api/forum/{slug}/threads", h.GetThreads)
 
 	r.POST("/api/thread/{slug_or_id}/create", h.CreatePosts)
+	r.POST("/api/thread/{slug_or_id}/vote", h.Vote)
 }

@@ -4,6 +4,11 @@ DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS "forum" CASCADE;
 DROP TABLE IF EXISTS "thread" CASCADE;
 DROP TABLE IF EXISTS "post" CASCADE;
+DROP TABLE IF EXISTS "vote" CASCADE;
+
+DROP FUNCTION IF EXISTS thread_vote();
+
+DROP TRIGGER IF EXISTS "vote_insert" ON "vote";
 
 CREATE UNLOGGED TABLE IF NOT EXISTS "user"
 (
@@ -48,3 +53,24 @@ CREATE UNLOGGED TABLE IF NOT EXISTS "post"
     "thread"   INT,
     "created"  TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE UNLOGGED TABLE IF NOT EXISTS "vote"
+(
+    "id" BIGSERIAL NOT NULL PRIMARY KEY,
+    "user" BIGINT REFERENCES "user"(id) NOT NULL,
+    "thread" BIGINT REFERENCES "thread"(id) NOT NULL,
+    "voice"   INT,
+    CONSTRAINT checks UNIQUE ("user", "thread")
+);
+
+CREATE FUNCTION thread_vote() RETURNS trigger AS $$
+BEGIN
+    UPDATE "thread"
+    SET "votes"=(votes + new.voice)
+    WHERE "id" = new.thread;
+    RETURN new;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "vote_insert" AFTER INSERT ON "vote"
+    FOR EACH ROW EXECUTE PROCEDURE thread_vote();
