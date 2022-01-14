@@ -2,7 +2,8 @@ CREATE EXTENSION IF NOT EXISTS CITEXT;
 
 DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS "forum" CASCADE;
-DROP TABLE IF EXISTS "forum" CASCADE;
+DROP TABLE IF EXISTS "thread" CASCADE;
+DROP TABLE IF EXISTS "post" CASCADE;
 
 CREATE UNLOGGED TABLE IF NOT EXISTS "user"
 (
@@ -33,4 +34,17 @@ CREATE UNLOGGED TABLE IF NOT EXISTS "thread"
     "votes"   INT         DEFAULT 0,
     "slug"    CITEXT,
     "created" TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE UNLOGGED TABLE IF NOT EXISTS "post"
+(
+    "id"       BIGSERIAL NOT NULL PRIMARY KEY,
+    "parent"   BIGINT      DEFAULT 0,
+--     "path"     BIGINT[]  NOT NULL DEFAULT '{0}',
+    "author"   CITEXT    NOT NULL,
+    "message"  TEXT      NOT NULL,
+    "isEdited" BOOL        DEFAULT false,
+    "forum"    CITEXT,
+    "thread"   INT,
+    "created"  TIMESTAMPTZ DEFAULT now()
 );

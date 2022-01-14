@@ -21,9 +21,22 @@ type Thread struct {
 	Created time.Time `json:"created,omitempty"`
 }
 
+type Post struct {
+	Id       int64     `json:"id,omitempty"`
+	Parent   int64     `json:"parent,omitempty"`
+	Author   string    `json:"author"`
+	Message  string    `json:"message"`
+	IsEdited bool      `json:"isEdited,omitempty"`
+	Forum    string    `json:"forum,omitempty"`
+	Thread   int32     `json:"thread,omitempty"`
+	Created  time.Time `json:"created,omitempty"`
+}
+
 type ForumRep interface {
 	CreateForum(newForum Forum) (Forum, error)
 	GetForumBySlug(slug string) (Forum, error)
 	CreateThread(newThread Thread) (Thread, error)
 	GetThreads(slug, limit, since, desc string) ([]Thread, error)
+	CreatePosts(thread Thread, newPost []Post) ([]Post, error)
+	GetThreadBySlugOrId(slugOrId string) (Thread, error)
 }

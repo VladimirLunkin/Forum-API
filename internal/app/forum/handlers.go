@@ -16,7 +16,7 @@ type Handlers struct {
 	Logger    *zap.SugaredLogger
 }
 
-func (h *Handlers) Create(ctx *fasthttp.RequestCtx) {
+func (h *Handlers) CreateForum(ctx *fasthttp.RequestCtx) {
 	var newForum models.Forum
 	err := json.Unmarshal(ctx.PostBody(), &newForum)
 	if err != nil {
@@ -73,15 +73,19 @@ func (h *Handlers) CreateThread(ctx *fasthttp.RequestCtx) {
 	}
 	newThread.Author = user.Nickname
 
-	_, err = h.ForumRepo.GetForumBySlug(fmt.Sprintf("%s", ctx.UserValue("slug")))
+	forum, err := h.ForumRepo.GetForumBySlug(fmt.Sprintf("%s", ctx.UserValue("slug")))
 	if err != nil {
 		delivery.SendError(ctx, http.StatusNotFound, "")
 		return
 	}
-	//newThread.Slug = forum.Slug
+	newThread.Forum = forum.Slug
 
 	thread, err := h.ForumRepo.CreateThread(newThread)
 	if err != nil {
+		if err == models.ThreadAlreadyExistsError {
+			delivery.Send(ctx, http.StatusConflict, thread)
+			return
+		}
 		delivery.SendError(ctx, http.StatusConflict, "")
 		return
 	}
@@ -91,6 +95,11 @@ func (h *Handlers) CreateThread(ctx *fasthttp.RequestCtx) {
 
 func (h *Handlers) GetThreads(ctx *fasthttp.RequestCtx) {
 	slug := fmt.Sprintf("%s", ctx.UserValue("slug"))
+	_, err := h.ForumRepo.GetForumBySlug(slug)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
 
 	limit := fmt.Sprintf("%s", ctx.FormValue("limit"))
 	if limit == "" {
@@ -99,16 +108,40 @@ func (h *Handlers) GetThreads(ctx *fasthttp.RequestCtx) {
 
 	since := fmt.Sprintf("%s", ctx.FormValue("since"))
 
-	desc := fmt.Sprintf("%s", ctx.FormValue("desc"))
-
-	fmt.Println(slug, limit, since, desc)
-	fmt.Println()
+	desc := ""
+	if fmt.Sprintf("%s", ctx.FormValue("desc")) == "true" {
+		desc = "desc"
+	}
 
 	threads, err := h.ForumRepo.GetThreads(slug, limit, since, desc)
-	if err != nil || len(threads) == 0 {
+	if err != nil {
 		delivery.SendError(ctx, http.StatusNotFound, "")
 		return
 	}
 
-	delivery.Send(ctx, http.StatusCreated, threads)
+	delivery.Send(ctx, http.StatusOK, threads)
+}
+
+func (h *Handlers) CreatePosts(ctx *fasthttp.RequestCtx) {
+	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
+	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	var newPosts []models.Post
+	err = json.Unmarshal(ctx.PostBody(), &newPosts)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusBadRequest, "")
+		return
+	}
+
+	posts, err := h.ForumRepo.CreatePosts(thread, newPosts)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusConflict, err.Error())
+		return
+	}
+
+	delivery.Send(ctx, http.StatusCreated, posts)
 }

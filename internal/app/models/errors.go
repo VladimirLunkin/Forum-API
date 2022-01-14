@@ -6,4 +6,5 @@ var (
 	UserExistsError        = errors.New("user exists")
 	NewUserDataError       = errors.New("user exists")
 	SlugAlreadyExistsError = errors.New("slug already exists")
+	ThreadAlreadyExistsError = errors.New("thread already exists")
 )
