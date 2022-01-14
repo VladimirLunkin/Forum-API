@@ -78,11 +78,6 @@ func (repo *RepoPgx) CreateThread(newThread models.Thread) (thread models.Thread
 		return models.Thread{}, models.SlugAlreadyExistsError
 	}
 
-	err = repo.DB.QueryRow(`UPDATE "forum" SET threads = threads + 1 WHERE slug = $1 RETURNING id;`, newThread.Slug).Err()
-	if err != nil {
-		return models.Thread{}, err
-	}
-
 	return thread, nil
 }
 
@@ -103,6 +98,7 @@ func (repo *RepoPgx) GetThreads(slug, limit, since, desc string) ([]models.Threa
 	if err != nil {
 		return []models.Thread{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var thread models.Thread
@@ -137,19 +133,23 @@ func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (p
 	created := time.Now()
 
 	for i, post := range newPost {
-		err := repo.DB.QueryRow(`SELECT "nickname" FROM "user" WHERE "nickname" = $1;`, post.Author).Err()
+		err := repo.DB.QueryRow(`SELECT "nickname" FROM "user" WHERE "nickname" = $1;`, post.Author).Scan(&post.Author)
 		if err != nil {
 			return []models.Post{}, err
 		}
 
 		if post.Parent != 0 {
-			err := repo.DB.QueryRow(`SELECT "id" FROM "post" WHERE "thread" = $1 and "id" = $2;`, thread.Id, post.Parent).Err()
+			var id int64
+			err := repo.DB.QueryRow(`SELECT "id" FROM "post" WHERE "thread" = $1 and "id" = $2;`, thread.Id, post.Parent).Scan(&id)
 			if err != nil {
 				return []models.Post{}, err
 			}
 		}
 
-		query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d) ", 1+i*6, 2+i*6, 3+i*6, 4+i*6, 5+i*6, 6+i*6)
+		if i != 0 {
+			query += ", "
+		}
+		query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", 1+i*6, 2+i*6, 3+i*6, 4+i*6, 5+i*6, 6+i*6)
 		newPostsData = append(newPostsData, post.Parent, post.Author, post.Message, thread.Forum, thread.Id, created)
 	}
 
@@ -159,6 +159,7 @@ func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (p
 	if err != nil {
 		return []models.Post{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var post models.Post
@@ -171,7 +172,7 @@ func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (p
 			&post.Forum,
 			&post.Thread,
 			&post.Created,
-			)
+		)
 		if err != nil {
 			return []models.Post{}, err
 		}
@@ -205,12 +206,9 @@ func (repo *RepoPgx) Vote(thread models.Thread, vote models.Vote) (models.Thread
 		return models.Thread{}, err
 	}
 
-	fmt.Println("Thread ", thread.Id, thread.Author, thread.Votes)
-
 	var voteId int64
 	err = repo.DB.QueryRow(`SELECT "id" FROM "vote" WHERE "user" = $1 AND "thread" = $2`,
 		user, thread.Id).Scan(&voteId)
-	fmt.Println("----", err, voteId)
 
 	if err == nil && voteId != 0 {
 		err = repo.DB.QueryRow(`UPDATE "vote" SET "voice" = $1 WHERE "id" = $2;`,
@@ -218,17 +216,77 @@ func (repo *RepoPgx) Vote(thread models.Thread, vote models.Vote) (models.Thread
 		if err != nil {
 			return models.Thread{}, err
 		}
-		thread.Votes += 2*vote.Voice
+		thread.Votes += 2 * vote.Voice
 
 		return thread, nil
 	}
 
-	err = repo.DB.QueryRow(`INSERT INTO "vote" ("user", "thread", "voice") VALUES ($1, $2, $3);`,
-		user, thread.Id, vote.Voice).Err()
+	err = repo.DB.QueryRow(`INSERT INTO "vote" ("user", "thread", "voice") VALUES ($1, $2, $3) RETURNING "user";`,
+		user, thread.Id, vote.Voice).Scan(&user)
 	if err != nil {
 		return models.Thread{}, err
 	}
 	thread.Votes += vote.Voice
 
 	return thread, nil
+}
+
+func (repo *RepoPgx) GetPosts(thread models.Thread, limit, since, sort, desc string) ([]models.Post, error) {
+	posts := make([]models.Post, 0)
+
+	query := `SELECT "id", "parent", "author", "message", "isEdited", "forum", "thread", "created"
+				FROM "post" WHERE "thread" = $1 `
+
+	sign := ">"
+	if desc == "desc" {
+		sign = "<"
+	}
+
+	switch sort {
+	case "flat":
+		if since != "" {
+			query += fmt.Sprintf(`AND "id" %s %s `, sign, since)
+		}
+		query += fmt.Sprintf(`ORDER BY "created" %s, "id" %s LIMIT %s `, desc, desc, limit)
+	case "tree":
+		if since != "" {
+			query += fmt.Sprintf(`AND "path" %s (SELECT "path" FROM "post" WHERE "id" = %s) `, sign, since)
+		}
+		query += fmt.Sprintf(`ORDER BY path[1] %s, path %s LIMIT %s `, desc, desc, limit)
+	case "parent_tree":
+		query += `AND "path" && (SELECT ARRAY (SELECT "id" FROM "post" WHERE "thread" = $1 AND "parent" = 0 `
+		if since != "" {
+			query += fmt.Sprintf(`AND "path" %s (SELECT path[1:1] FROM "post" WHERE "id" = %s) `, sign, since)
+		}
+		query += fmt.Sprintf(`ORDER BY path[1] %s, path LIMIT %s)) ORDER BY path[1] %s, path `, desc, limit, desc)
+	default:
+		return []models.Post{}, models.SortError
+	}
+
+	rows, err := repo.DB.Query(query, thread.Id)
+	if err != nil {
+		return []models.Post{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var post models.Post
+		err := rows.Scan(
+			&post.Id,
+			&post.Parent,
+			&post.Author,
+			&post.Message,
+			&post.IsEdited,
+			&post.Forum,
+			&post.Thread,
+			&post.Created,
+		)
+		if err != nil {
+			return []models.Post{}, err
+		}
+
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }

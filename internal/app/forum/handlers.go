@@ -126,6 +126,7 @@ func (h *Handlers) CreatePosts(ctx *fasthttp.RequestCtx) {
 	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
 	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
 	if err != nil {
+		fmt.Println("assssssss ", thread, err)
 		delivery.SendError(ctx, http.StatusNotFound, "")
 		return
 	}
@@ -168,4 +169,49 @@ func (h *Handlers) Vote(ctx *fasthttp.RequestCtx) {
 	}
 
 	delivery.Send(ctx, http.StatusOK, thread)
+}
+
+func (h *Handlers) ThreadDetails(ctx *fasthttp.RequestCtx) {
+	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
+	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, thread)
+}
+
+func (h *Handlers) GetPosts(ctx *fasthttp.RequestCtx) {
+	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
+	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	limit := fmt.Sprintf("%s", ctx.FormValue("limit"))
+	if limit == "" {
+		limit = "100"
+	}
+
+	since := fmt.Sprintf("%s", ctx.FormValue("since"))
+
+	sort := fmt.Sprintf("%s", ctx.FormValue("sort"))
+	if sort == "" {
+		sort = "flat"
+	}
+
+	desc := ""
+	if fmt.Sprintf("%s", ctx.FormValue("desc")) == "true" {
+		desc = "desc"
+	}
+
+	posts, err := h.ForumRepo.GetPosts(thread, limit, since, sort, desc)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, posts)
 }

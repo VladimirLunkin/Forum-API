@@ -13,6 +13,7 @@ import (
 
 func getPostgres() *sql.DB {
 	dsn := "user=postgres dbname=forum1 password=251099 host=127.0.0.1 port=5432 sslmode=disable"
+	//dsn := "user=vladimir dbname=forum password=password host=127.0.0.1 port=5432 sslmode=disable"
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalln("cant parse config", err)
@@ -21,7 +22,7 @@ func getPostgres() *sql.DB {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	db.SetMaxOpenConns(1000)
+	db.SetMaxOpenConns(10000)
 	return db
 }
 

@@ -7,8 +7,12 @@ DROP TABLE IF EXISTS "post" CASCADE;
 DROP TABLE IF EXISTS "vote" CASCADE;
 
 DROP FUNCTION IF EXISTS thread_vote();
+DROP FUNCTION IF EXISTS create_post();
+DROP FUNCTION IF EXISTS create_thread();
 
 DROP TRIGGER IF EXISTS "vote_insert" ON "vote";
+DROP TRIGGER IF EXISTS "create_post" ON "post";
+DROP TRIGGER IF EXISTS "create_thread" ON "thread";
 
 CREATE UNLOGGED TABLE IF NOT EXISTS "user"
 (
@@ -45,13 +49,13 @@ CREATE UNLOGGED TABLE IF NOT EXISTS "post"
 (
     "id"       BIGSERIAL NOT NULL PRIMARY KEY,
     "parent"   BIGINT      DEFAULT 0,
---     "path"     BIGINT[]  NOT NULL DEFAULT '{0}',
     "author"   CITEXT    NOT NULL,
     "message"  TEXT      NOT NULL,
     "isEdited" BOOL        DEFAULT false,
     "forum"    CITEXT,
     "thread"   INT,
-    "created"  TIMESTAMPTZ DEFAULT now()
+    "created"  TIMESTAMPTZ DEFAULT now(),
+    "path"     BIGINT[]  NOT NULL DEFAULT '{0}'
 );
 
 CREATE UNLOGGED TABLE IF NOT EXISTS "vote"
@@ -74,3 +78,28 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER "vote_insert" AFTER INSERT ON "vote"
     FOR EACH ROW EXECUTE PROCEDURE thread_vote();
+
+CREATE FUNCTION create_post() RETURNS trigger as $$
+BEGIN
+    UPDATE "forum"
+    SET "posts" = posts + 1
+    WHERE "slug" = new.forum;
+    new.path = (SELECT "path" FROM "post" WHERE "id" = new.parent LIMIT 1) || new.id;
+    return new;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "create_post" BEFORE INSERT ON "post"
+    FOR EACH ROW EXECUTE PROCEDURE create_post();
+
+CREATE FUNCTION create_thread() RETURNS trigger as $$
+BEGIN
+    UPDATE "forum"
+    SET "threads" = threads + 1
+    WHERE "slug" = new.forum;
+    return new;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "create_thread" BEFORE INSERT ON "thread"
+    FOR EACH ROW EXECUTE PROCEDURE create_thread();
