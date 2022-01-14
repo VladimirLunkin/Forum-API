@@ -30,9 +30,9 @@ func (repo *RepoPgx) CreateForum(newForum models.Forum) (forum models.Forum, err
 
 func (repo *RepoPgx) GetForumBySlug(slug string) (models.Forum, error) {
 	var forum models.Forum
-	err := repo.DB.QueryRow(`SELECT "title", "user", "slug", "posts", "threads" FROM "forum"
+	err := repo.DB.QueryRow(`SELECT "id", "title", "user", "slug", "posts", "threads" FROM "forum"
 						WHERE "slug" = $1;`, slug,
-	).Scan(&forum.Title, &forum.User, &forum.Slug, &forum.Posts, &forum.Threads)
+	).Scan(&forum.Id, &forum.Title, &forum.User, &forum.Slug, &forum.Posts, &forum.Threads)
 	if err != nil {
 		return models.Forum{}, err
 	}
@@ -122,6 +122,44 @@ func (repo *RepoPgx) GetThreads(slug, limit, since, desc string) ([]models.Threa
 	return threads, nil
 }
 
+func (repo *RepoPgx) GetUsers(forum models.Forum, limit, since, desc string) ([]models.User, error) {
+	users := make([]models.User, 0)
+
+	query := `SELECT "nickname", "about", "email", "fullname" FROM "user"
+				WHERE "id" IN (SELECT "user" FROM "forum_user" WHERE forum = $1)`
+	if since != "" {
+		sign := ">"
+		if desc == "desc" {
+			sign = "<"
+		}
+		query += fmt.Sprintf(` AND "nickname" %s '%s'`, sign, since)
+	}
+	query += fmt.Sprintf(` ORDER BY "nickname" %s LIMIT %s;`, desc, limit)
+
+	rows, err := repo.DB.Query(query, forum.Id)
+	if err != nil {
+		return []models.User{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.Nickname,
+			&user.About,
+			&user.Email,
+			&user.Fullname,
+		)
+		if err != nil {
+			return []models.User{}, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (posts []models.Post, err error) {
 	if len(newPost) == 0 {
 		return []models.Post{}, nil
@@ -135,7 +173,7 @@ func (repo *RepoPgx) CreatePosts(thread models.Thread, newPost []models.Post) (p
 	for i, post := range newPost {
 		err := repo.DB.QueryRow(`SELECT "nickname" FROM "user" WHERE "nickname" = $1;`, post.Author).Scan(&post.Author)
 		if err != nil {
-			return []models.Post{}, err
+			return []models.Post{}, models.NoAuthorError
 		}
 
 		if post.Parent != 0 {
@@ -289,4 +327,65 @@ func (repo *RepoPgx) GetPosts(thread models.Thread, limit, since, sort, desc str
 	}
 
 	return posts, nil
+}
+
+func (repo *RepoPgx) UpdateThread(oldThread, newThread models.Thread) (thread models.Thread, err error) {
+	err = repo.DB.QueryRow(`UPDATE "thread" SET "title" = $1, "message" = $2 WHERE "id" = $3
+			RETURNING "id", "title", "author", "forum", "message", "votes", "slug", "created";`,
+			newThread.Title, newThread.Message, oldThread.Id,
+	).Scan(
+		&thread.Id,
+		&thread.Title,
+		&thread.Author,
+		&thread.Forum,
+		&thread.Message,
+		&thread.Votes,
+		&thread.Slug,
+		&thread.Created,
+	)
+	return
+}
+
+func (repo *RepoPgx) GetPost(id int) (post models.Post, err error) {
+	err = repo.DB.QueryRow(`SELECT "id", "parent", "author", "message", "isEdited", "forum", "thread", "created"
+		FROM "post" WHERE "id" = $1;`, id).Scan(
+		&post.Id,
+		&post.Parent,
+		&post.Author,
+		&post.Message,
+		&post.IsEdited,
+		&post.Forum,
+		&post.Thread,
+		&post.Created,
+	)
+	return
+}
+
+func (repo *RepoPgx) UpdatePost(id int, newPost models.Post) (post models.Post, err error) {
+	err = repo.DB.QueryRow(`UPDATE "post" SET "message" = $1, "isEdited" = true WHERE "id" = $2
+			RETURNING "id", "parent", "author", "message", "isEdited", "forum", "thread", "created";`,
+		newPost.Message, id,
+	).Scan(
+		&post.Id,
+		&post.Parent,
+		&post.Author,
+		&post.Message,
+		&post.IsEdited,
+		&post.Forum,
+		&post.Thread,
+		&post.Created,
+	)
+	return
+}
+
+func (repo *RepoPgx) GetStatus() (models.Service, error) {
+	var status models.Service
+	err := repo.DB.QueryRow(`SELECT
+									(SELECT COUNT(*) FROM "forum"),
+									(SELECT COUNT(*) FROM "post"),
+									(SELECT COUNT(*) FROM "thread"), 
+									(SELECT COUNT(*) FROM "user");`,
+	).Scan(&status.Forum, &status.Post, &status.Thread, &status.User)
+	fmt.Println(status, err)
+	return status, err
 }

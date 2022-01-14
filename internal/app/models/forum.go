@@ -3,6 +3,7 @@ package models
 import "time"
 
 type Forum struct {
+	Id int64 `json:"-"`
 	Title   string `json:"title"`
 	User    string `json:"user"`
 	Slug    string `json:"slug"`
@@ -38,13 +39,33 @@ type Vote struct {
 	Voice    int32  `json:"voice"`
 }
 
+type PostInfo struct {
+	Post *Post `json:"post"`
+	Author *User `json:"author,omitempty"`
+	Thread *Thread `json:"thread,omitempty"`
+	Forum *Forum `json:"forum,omitempty"`
+}
+
+type Service struct {
+	User int `json:"user"`
+	Forum int `json:"forum"`
+	Thread int `json:"thread"`
+	Post int `json:"post"`
+}
+
 type ForumRep interface {
 	CreateForum(newForum Forum) (Forum, error)
 	GetForumBySlug(slug string) (Forum, error)
 	CreateThread(newThread Thread) (Thread, error)
 	GetThreads(slug, limit, since, desc string) ([]Thread, error)
+	GetUsers(forum Forum, limit, since, desc string) ([]User, error)
 	CreatePosts(thread Thread, newPost []Post) ([]Post, error)
 	GetThreadBySlugOrId(slugOrId string) (Thread, error)
 	Vote(thread Thread, vote Vote) (Thread, error)
 	GetPosts(thread Thread, limit, since, sort, desc string) ([]Post, error)
+	UpdateThread(oldThread, newThread Thread) (Thread, error)
+	GetPost(id int) (Post, error)
+	UpdatePost(id int, newPost Post) (Post, error)
+
+	GetStatus() (Service, error)
 }

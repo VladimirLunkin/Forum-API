@@ -6,6 +6,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 	"tech-db-forum/internal/app/models"
 	"tech-db-forum/internal/pkg/delivery"
 )
@@ -122,11 +123,39 @@ func (h *Handlers) GetThreads(ctx *fasthttp.RequestCtx) {
 	delivery.Send(ctx, http.StatusOK, threads)
 }
 
+func (h *Handlers) GetUsers(ctx *fasthttp.RequestCtx) {
+	slug := fmt.Sprintf("%s", ctx.UserValue("slug"))
+	forum, err := h.ForumRepo.GetForumBySlug(slug)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	limit := fmt.Sprintf("%s", ctx.FormValue("limit"))
+	if limit == "" {
+		limit = "100"
+	}
+
+	since := fmt.Sprintf("%s", ctx.FormValue("since"))
+
+	desc := ""
+	if fmt.Sprintf("%s", ctx.FormValue("desc")) == "true" {
+		desc = "desc"
+	}
+
+	users, err := h.ForumRepo.GetUsers(forum, limit, since, desc)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, users)
+}
+
 func (h *Handlers) CreatePosts(ctx *fasthttp.RequestCtx) {
 	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
 	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
 	if err != nil {
-		fmt.Println("assssssss ", thread, err)
 		delivery.SendError(ctx, http.StatusNotFound, "")
 		return
 	}
@@ -140,6 +169,10 @@ func (h *Handlers) CreatePosts(ctx *fasthttp.RequestCtx) {
 
 	posts, err := h.ForumRepo.CreatePosts(thread, newPosts)
 	if err != nil {
+		if err == models.NoAuthorError {
+			delivery.SendError(ctx, http.StatusNotFound, err.Error())
+			return
+		}
 		delivery.SendError(ctx, http.StatusConflict, err.Error())
 		return
 	}
@@ -214,4 +247,89 @@ func (h *Handlers) GetPosts(ctx *fasthttp.RequestCtx) {
 	}
 
 	delivery.Send(ctx, http.StatusOK, posts)
+}
+
+func (h *Handlers) UpdateThreadDetails(ctx *fasthttp.RequestCtx) {
+	slugOrId := fmt.Sprintf("%s", ctx.UserValue("slug_or_id"))
+	thread, err := h.ForumRepo.GetThreadBySlugOrId(slugOrId)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	var newThread models.Thread
+	err = json.Unmarshal(ctx.PostBody(), &newThread)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusBadRequest, "")
+		return
+	}
+	if newThread.Title == "" && newThread.Message == "" {
+		delivery.Send(ctx, http.StatusOK, thread)
+		return
+	}
+
+	thread, err = h.ForumRepo.UpdateThread(thread, newThread)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, thread)
+}
+
+func (h *Handlers) GetPost(ctx *fasthttp.RequestCtx) {
+	id, err := strconv.Atoi(fmt.Sprintf("%s", ctx.UserValue("id")))
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	//var postInfo models.PostInfo
+
+	post, err := h.ForumRepo.GetPost(id)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	related := fmt.Sprintf("%s", ctx.FormValue("related"))
+	if related == "" {
+		related = "100"
+	}
+
+	delivery.Send(ctx, http.StatusOK, models.PostInfo{Post: &post})
+}
+
+func (h *Handlers) UpdatePost(ctx *fasthttp.RequestCtx) {
+	id, err := strconv.Atoi(fmt.Sprintf("%s", ctx.UserValue("id")))
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	var newPost models.Post
+	err = json.Unmarshal(ctx.PostBody(), &newPost)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusBadRequest, "")
+		return
+	}
+
+	post, err := h.ForumRepo.UpdatePost(id, newPost)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, post)
+}
+
+func (h *Handlers) ServiceStatus(ctx *fasthttp.RequestCtx) {
+	status, err := h.ForumRepo.GetStatus()
+	if err != nil {
+		//delivery.SendError(ctx, http.StatusNotFound, "")
+		delivery.Send(ctx, http.StatusOK, nil)
+		return
+	}
+
+	delivery.Send(ctx, http.StatusOK, status)
 }
