@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Forum struct {
-	Id int64 `json:"-"`
+	Id      int64  `json:"-"`
 	Title   string `json:"title"`
 	User    string `json:"user"`
 	Slug    string `json:"slug"`
@@ -40,17 +40,10 @@ type Vote struct {
 }
 
 type PostInfo struct {
-	Post *Post `json:"post"`
-	Author *User `json:"author,omitempty"`
+	Post   *Post   `json:"post"`
+	Author *User   `json:"author,omitempty"`
 	Thread *Thread `json:"thread,omitempty"`
-	Forum *Forum `json:"forum,omitempty"`
-}
-
-type Service struct {
-	User int `json:"user"`
-	Forum int `json:"forum"`
-	Thread int `json:"thread"`
-	Post int `json:"post"`
+	Forum  *Forum  `json:"forum,omitempty"`
 }
 
 type ForumRep interface {
@@ -66,6 +59,4 @@ type ForumRep interface {
 	UpdateThread(oldThread, newThread Thread) (Thread, error)
 	GetPost(id int) (Post, error)
 	UpdatePost(id int, newPost Post) (Post, error)
-
-	GetStatus() (Service, error)
 }

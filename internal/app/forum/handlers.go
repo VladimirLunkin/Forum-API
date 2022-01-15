@@ -322,14 +322,3 @@ func (h *Handlers) UpdatePost(ctx *fasthttp.RequestCtx) {
 
 	delivery.Send(ctx, http.StatusOK, post)
 }
-
-func (h *Handlers) ServiceStatus(ctx *fasthttp.RequestCtx) {
-	status, err := h.ForumRepo.GetStatus()
-	if err != nil {
-		//delivery.SendError(ctx, http.StatusNotFound, "")
-		delivery.Send(ctx, http.StatusOK, nil)
-		return
-	}
-
-	delivery.Send(ctx, http.StatusOK, status)
-}

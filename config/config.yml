@@ -1,0 +1,9 @@
+host: localhost
+port: 5000
+
+db:
+  host: localhost
+  port: 5432
+  dbname: forum1
+  username: postgres
+  password: 251099

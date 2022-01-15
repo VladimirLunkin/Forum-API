@@ -19,7 +19,4 @@ func SetForumRouting(r *router.Router, h *Handlers) {
 
 	r.GET("/api/post/{id}/details", h.GetPost)
 	r.POST("/api/post/{id}/details", h.UpdatePost)
-
-	r.GET("/api/service/status", h.ServiceStatus)
-	//r.POST("/api/service/clear", h.ServiceClear)
 }

@@ -2,18 +2,39 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/fasthttp/router"
 	_ "github.com/jackc/pgx/stdlib"
+	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 	"log"
 	"tech-db-forum/internal/app/forum"
+	"tech-db-forum/internal/app/service"
 	"tech-db-forum/internal/app/user"
 )
 
-func getPostgres() *sql.DB {
-	dsn := "user=postgres dbname=forum1 password=251099 host=127.0.0.1 port=5432 sslmode=disable"
-	//dsn := "user=vladimir dbname=forum password=password host=127.0.0.1 port=5432 sslmode=disable"
+type DBConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+	DBName   string
+}
+
+type Config struct {
+	Host string
+	Port string
+	DB   DBConfig
+}
+
+func (c Config) Addr() string {
+	return c.Host + ":" + c.Port
+}
+
+func getPostgres(config DBConfig) *sql.DB {
+	dsn := fmt.Sprintf(`user=%s dbname=%s password=%s host=%s port=%s sslmode=disable`,
+		config.Username, config.DBName, config.Password, config.Host, config.Port)
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalln("cant parse config", err)
@@ -27,6 +48,17 @@ func getPostgres() *sql.DB {
 }
 
 func main() {
+	viper.AddConfigPath("./config/")
+	viper.SetConfigName("config")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatal(err)
+	}
+
+	var config Config
+	if err := viper.Unmarshal(&config); err != nil {
+		log.Fatal(err)
+	}
+
 	zapLogger, _ := zap.NewProduction()
 	defer zapLogger.Sync()
 	logger := zapLogger.Sugar()
@@ -35,14 +67,19 @@ func main() {
 
 	user.SetUserRouting(r, &user.Handlers{
 		Logger:   logger,
-		UserRepo: user.NewPgxRepository(getPostgres()),
+		UserRepo: user.NewPgxRepository(getPostgres(config.DB)),
 	})
 
 	forum.SetForumRouting(r, &forum.Handlers{
 		Logger:    logger,
-		ForumRepo: forum.NewPgxRepository(getPostgres()),
-		UserRepo:  user.NewPgxRepository(getPostgres()),
+		ForumRepo: forum.NewPgxRepository(getPostgres(config.DB)),
+		UserRepo:  user.NewPgxRepository(getPostgres(config.DB)),
 	})
 
-	log.Fatal(fasthttp.ListenAndServe(":5000", r.Handler))
+	service.SetServiceRouting(r, &service.Handlers{
+		Logger:      logger,
+		ServiceRepo: service.NewPgxRepository(getPostgres(config.DB)),
+	})
+
+	log.Fatal(fasthttp.ListenAndServe(config.Addr(), r.Handler))
 }

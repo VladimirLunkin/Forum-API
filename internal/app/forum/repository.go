@@ -332,7 +332,7 @@ func (repo *RepoPgx) GetPosts(thread models.Thread, limit, since, sort, desc str
 func (repo *RepoPgx) UpdateThread(oldThread, newThread models.Thread) (thread models.Thread, err error) {
 	err = repo.DB.QueryRow(`UPDATE "thread" SET "title" = $1, "message" = $2 WHERE "id" = $3
 			RETURNING "id", "title", "author", "forum", "message", "votes", "slug", "created";`,
-			newThread.Title, newThread.Message, oldThread.Id,
+		newThread.Title, newThread.Message, oldThread.Id,
 	).Scan(
 		&thread.Id,
 		&thread.Title,
@@ -376,16 +376,4 @@ func (repo *RepoPgx) UpdatePost(id int, newPost models.Post) (post models.Post, 
 		&post.Created,
 	)
 	return
-}
-
-func (repo *RepoPgx) GetStatus() (models.Service, error) {
-	var status models.Service
-	err := repo.DB.QueryRow(`SELECT
-									(SELECT COUNT(*) FROM "forum"),
-									(SELECT COUNT(*) FROM "post"),
-									(SELECT COUNT(*) FROM "thread"), 
-									(SELECT COUNT(*) FROM "user");`,
-	).Scan(&status.Forum, &status.Post, &status.Thread, &status.User)
-	fmt.Println(status, err)
-	return status, err
 }
