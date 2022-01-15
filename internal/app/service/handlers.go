@@ -23,3 +23,11 @@ func (h *Handlers) ServiceStatus(ctx *fasthttp.RequestCtx) {
 
 	delivery.Send(ctx, http.StatusOK, status)
 }
+
+func (h *Handlers) ServiceClear(ctx *fasthttp.RequestCtx) {
+	if err := h.ServiceRepo.Clear(); err != nil {
+		delivery.SendError(ctx, http.StatusInternalServerError, "")
+	}
+
+	delivery.SendOK(ctx)
+}

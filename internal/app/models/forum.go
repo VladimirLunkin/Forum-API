@@ -57,6 +57,6 @@ type ForumRep interface {
 	Vote(thread Thread, vote Vote) (Thread, error)
 	GetPosts(thread Thread, limit, since, sort, desc string) ([]Post, error)
 	UpdateThread(oldThread, newThread Thread) (Thread, error)
-	GetPost(id int) (Post, error)
+	GetPost(id int, related []string) (PostInfo, error)
 	UpdatePost(id int, newPost Post) (Post, error)
 }

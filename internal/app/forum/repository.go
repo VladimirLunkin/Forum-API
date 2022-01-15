@@ -346,7 +346,8 @@ func (repo *RepoPgx) UpdateThread(oldThread, newThread models.Thread) (thread mo
 	return
 }
 
-func (repo *RepoPgx) GetPost(id int) (post models.Post, err error) {
+func (repo *RepoPgx) GetPost(id int, related []string) (postInfo models.PostInfo, err error) {
+	var post models.Post
 	err = repo.DB.QueryRow(`SELECT "id", "parent", "author", "message", "isEdited", "forum", "thread", "created"
 		FROM "post" WHERE "id" = $1;`, id).Scan(
 		&post.Id,
@@ -358,6 +359,65 @@ func (repo *RepoPgx) GetPost(id int) (post models.Post, err error) {
 		&post.Thread,
 		&post.Created,
 	)
+	if err != nil {
+		return
+	}
+
+	postInfo.Post = &post
+
+	if len(related) != 0 {
+		for _, r := range related {
+			switch r {
+			case "user":
+				var user models.User
+				err = repo.DB.QueryRow(`SELECT "nickname", "fullname", "about", "email"
+									FROM "user" WHERE "nickname" = $1;`, post.Author).Scan(
+					&user.Nickname,
+					&user.Fullname,
+					&user.About,
+					&user.Email,
+				)
+				if err != nil {
+					return
+				}
+				postInfo.Author = &user
+			case "forum":
+				var forum models.Forum
+				err = repo.DB.QueryRow(`SELECT "title", "user", "slug", "posts", "threads"
+									FROM "forum" WHERE "slug" = $1;`, post.Forum).Scan(
+					&forum.Title,
+					&forum.User,
+					&forum.Slug,
+					&forum.Posts,
+					&forum.Threads,
+				)
+				if err != nil {
+					return
+				}
+				postInfo.Forum = &forum
+			case "thread":
+				var thread models.Thread
+				err = repo.DB.QueryRow(`SELECT "id", "title", "author", "forum", "message", "votes", "slug", "created"
+									FROM "thread" WHERE "id" = $1;`, post.Thread).Scan(
+					&thread.Id,
+					&thread.Title,
+					&thread.Author,
+					&thread.Forum,
+					&thread.Message,
+					&thread.Votes,
+					&thread.Slug,
+					&thread.Created,
+				)
+				if err != nil {
+					return
+				}
+				postInfo.Thread = &thread
+			default:
+				break
+			}
+		}
+	}
+
 	return
 }
 

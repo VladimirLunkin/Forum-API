@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 	"tech-db-forum/internal/app/models"
 	"tech-db-forum/internal/pkg/delivery"
 )
@@ -267,6 +268,12 @@ func (h *Handlers) UpdateThreadDetails(ctx *fasthttp.RequestCtx) {
 		delivery.Send(ctx, http.StatusOK, thread)
 		return
 	}
+	if newThread.Title == "" {
+		newThread.Title = thread.Title
+	}
+	if newThread.Message == "" {
+		newThread.Message = thread.Message
+	}
 
 	thread, err = h.ForumRepo.UpdateThread(thread, newThread)
 	if err != nil {
@@ -284,20 +291,15 @@ func (h *Handlers) GetPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	//var postInfo models.PostInfo
+	related := strings.Split(fmt.Sprintf("%s", ctx.FormValue("related")), ",")
 
-	post, err := h.ForumRepo.GetPost(id)
+	post, err := h.ForumRepo.GetPost(id, related)
 	if err != nil {
-		delivery.SendError(ctx, http.StatusNotFound, "")
+		delivery.SendError(ctx, http.StatusNotFound, err.Error())
 		return
 	}
 
-	related := fmt.Sprintf("%s", ctx.FormValue("related"))
-	if related == "" {
-		related = "100"
-	}
-
-	delivery.Send(ctx, http.StatusOK, models.PostInfo{Post: &post})
+	delivery.Send(ctx, http.StatusOK, post)
 }
 
 func (h *Handlers) UpdatePost(ctx *fasthttp.RequestCtx) {
@@ -311,6 +313,18 @@ func (h *Handlers) UpdatePost(ctx *fasthttp.RequestCtx) {
 	err = json.Unmarshal(ctx.PostBody(), &newPost)
 	if err != nil {
 		delivery.SendError(ctx, http.StatusBadRequest, "")
+		return
+	}
+
+	var related []string
+	postInfo, err := h.ForumRepo.GetPost(id, related)
+	if err != nil {
+		delivery.SendError(ctx, http.StatusNotFound, "")
+		return
+	}
+	oldPost := postInfo.Post
+	if newPost.Message == "" || oldPost.Message == newPost.Message {
+		delivery.Send(ctx, http.StatusOK, oldPost)
 		return
 	}
 

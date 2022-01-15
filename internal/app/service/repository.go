@@ -25,3 +25,8 @@ func (repo *RepoPgx) GetStatus() (models.Service, error) {
 	fmt.Println(status, err)
 	return status, err
 }
+
+func (repo *RepoPgx) Clear() error {
+	err := repo.DB.QueryRow(`TRUNCATE "user", "forum", "thread", "post", "vote", "forum_user" CASCADE;`).Scan()
+	return err
+}

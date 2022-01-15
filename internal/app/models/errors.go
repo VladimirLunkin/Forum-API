@@ -9,4 +9,5 @@ var (
 	ThreadAlreadyExistsError = errors.New("thread already exists")
 	SortError                = errors.New("undefined sort type")
 	NoAuthorError            = errors.New("posts create no author")
+	RelatedError                = errors.New("undefined related")
 )

@@ -9,4 +9,5 @@ type Service struct {
 
 type ServiceRep interface {
 	GetStatus() (Service, error)
+	Clear() error
 }

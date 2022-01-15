@@ -22,6 +22,10 @@ func Send(ctx *fasthttp.RequestCtx, status int, data interface{}) {
 	ctx.SetBody(body)
 }
 
+func SendOK(ctx *fasthttp.RequestCtx) {
+	ctx.SetStatusCode(http.StatusOK)
+}
+
 func SendError(ctx *fasthttp.RequestCtx, status int, err string) {
 	Send(ctx, status, Error{Message: err})
 }
