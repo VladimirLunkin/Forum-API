@@ -16,7 +16,6 @@ type Handlers struct {
 func (h *Handlers) ServiceStatus(ctx *fasthttp.RequestCtx) {
 	status, err := h.ServiceRepo.GetStatus()
 	if err != nil {
-		//delivery.SendError(ctx, http.StatusNotFound, "")
 		delivery.Send(ctx, http.StatusOK, nil)
 		return
 	}
