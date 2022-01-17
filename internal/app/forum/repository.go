@@ -1,18 +1,18 @@
 package forum
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jackc/pgx"
 	"strconv"
 	"tech-db-forum/internal/app/models"
 	"time"
 )
 
 type RepoPgx struct {
-	DB *sql.DB
+	DB *pgx.ConnPool
 }
 
-func NewPgxRepository(db *sql.DB) *RepoPgx {
+func NewPgxRepository(db *pgx.ConnPool) *RepoPgx {
 	return &RepoPgx{DB: db}
 }
 
@@ -238,19 +238,23 @@ func (repo *RepoPgx) GetThreadBySlugOrId(slugOrId string) (thread models.Thread,
 }
 
 func (repo *RepoPgx) Vote(thread models.Thread, vote models.Vote) (models.Thread, error) {
-	var user int64
-	err := repo.DB.QueryRow(`SELECT "id" FROM "user" WHERE "nickname" = $1;`, vote.Nickname).Scan(&user)
+	var userId int64
+	err := repo.DB.QueryRow(`SELECT "id" FROM "user" WHERE "nickname" = $1;`, vote.Nickname).Scan(&userId)
 	if err != nil {
 		return models.Thread{}, err
 	}
 
 	var voteId int64
-	err = repo.DB.QueryRow(`SELECT "id" FROM "vote" WHERE "user" = $1 AND "thread" = $2`,
-		user, thread.Id).Scan(&voteId)
+	var voice int32
+	err = repo.DB.QueryRow(`SELECT "id", "voice" FROM "vote" WHERE "user" = $1 AND "thread" = $2;`,
+		userId, thread.Id).Scan(&voteId, &voice)
+	if voice == vote.Voice {
+		return thread, nil
+	}
 
 	if err == nil && voteId != 0 {
-		err = repo.DB.QueryRow(`UPDATE "vote" SET "voice" = $1 WHERE "id" = $2;`,
-			vote.Voice, user).Err()
+		err = repo.DB.QueryRow(`UPDATE "vote" SET "voice" = $1 WHERE "id" = $2 RETURNING "id";`,
+			vote.Voice, voteId).Scan(&voteId)
 		if err != nil {
 			return models.Thread{}, err
 		}
@@ -260,7 +264,7 @@ func (repo *RepoPgx) Vote(thread models.Thread, vote models.Vote) (models.Thread
 	}
 
 	err = repo.DB.QueryRow(`INSERT INTO "vote" ("user", "thread", "voice") VALUES ($1, $2, $3) RETURNING "user";`,
-		user, thread.Id, vote.Voice).Scan(&user)
+		userId, thread.Id, vote.Voice).Scan(&userId)
 	if err != nil {
 		return models.Thread{}, err
 	}

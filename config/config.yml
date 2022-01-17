@@ -7,10 +7,3 @@ db:
   dbname: forum
   username: vladimir
   password: password
-
-#db:
-#  host: 127.0.0.1
-#  port: 5432
-#  dbname: forum1
-#  username: postgres
-#  password: 251099

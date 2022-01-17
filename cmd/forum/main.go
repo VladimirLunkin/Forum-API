@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fasthttp/router"
+	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
@@ -32,19 +32,26 @@ func (c Config) Addr() string {
 	return ":" + c.Port
 }
 
-func getPostgres(config DBConfig) *sql.DB {
+func getPostgres(config DBConfig) *pgx.ConnPool {
 	dsn := fmt.Sprintf(`user=%s dbname=%s password=%s host=%s port=%s sslmode=disable`,
 		config.Username, config.DBName, config.Password, config.Host, config.Port)
-	db, err := sql.Open("pgx", dsn)
+
+	conn, err := pgx.ParseConnectionString(dsn)
 	if err != nil {
 		log.Fatalln("cant parse config", err)
 	}
-	err = db.Ping()
+
+	pool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+		ConnConfig:     conn,
+		MaxConnections: 1000,
+		AfterConnect:   nil,
+		AcquireTimeout: 0,
+	})
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("Error %s occurred during connection to database", err)
 	}
-	db.SetMaxOpenConns(10000)
-	return db
+
+	return pool
 }
 
 func main() {
@@ -65,23 +72,25 @@ func main() {
 
 	r := router.New()
 
+	db := getPostgres(config.DB)
+
 	user.SetUserRouting(r, &user.Handlers{
 		Logger:   logger,
-		UserRepo: user.NewPgxRepository(getPostgres(config.DB)),
+		UserRepo: user.NewPgxRepository(db),
 	})
 
 	forum.SetForumRouting(r, &forum.Handlers{
 		Logger:    logger,
-		ForumRepo: forum.NewPgxRepository(getPostgres(config.DB)),
-		UserRepo:  user.NewPgxRepository(getPostgres(config.DB)),
+		ForumRepo: forum.NewPgxRepository(db),
+		UserRepo:  user.NewPgxRepository(db),
 	})
 
 	service.SetServiceRouting(r, &service.Handlers{
 		Logger:      logger,
-		ServiceRepo: service.NewPgxRepository(getPostgres(config.DB)),
+		ServiceRepo: service.NewPgxRepository(db),
 	})
 
-	fmt.Printf("Start server on %s port\n", config.Port)
+	fmt.Printf("Start server on port %s\n", config.Port)
 
 	log.Fatal(fasthttp.ListenAndServe(config.Addr(), r.Handler))
 }

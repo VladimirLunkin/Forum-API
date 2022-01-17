@@ -1,15 +1,15 @@
 package user
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx"
 	"tech-db-forum/internal/app/models"
 )
 
 type RepoPgx struct {
-	DB *sql.DB
+	DB *pgx.ConnPool
 }
 
-func NewPgxRepository(db *sql.DB) *RepoPgx {
+func NewPgxRepository(db *pgx.ConnPool) *RepoPgx {
 	return &RepoPgx{DB: db}
 }
 
