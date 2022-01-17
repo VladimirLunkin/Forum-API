@@ -29,7 +29,7 @@ type Config struct {
 }
 
 func (c Config) Addr() string {
-	return c.Host + ":" + c.Port
+	return ":" + c.Port
 }
 
 func getPostgres(config DBConfig) *sql.DB {
@@ -80,6 +80,8 @@ func main() {
 		Logger:      logger,
 		ServiceRepo: service.NewPgxRepository(getPostgres(config.DB)),
 	})
+
+	fmt.Printf("Start server on %s port\n", config.Port)
 
 	log.Fatal(fasthttp.ListenAndServe(config.Addr(), r.Handler))
 }

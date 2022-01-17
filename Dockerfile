@@ -7,7 +7,8 @@ RUN go build ./cmd/forum/main.go
 FROM ubuntu:20.04
 
 RUN apt-get -y update && apt-get install -y tzdata
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo Russia/Moscow > /etc/timezone
+ENV TZ=Russia/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get -y update && apt-get install -y postgresql-12
 USER postgres
