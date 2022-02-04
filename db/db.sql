@@ -180,6 +180,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_user_thread ON "vote" ("user", "threa
 CREATE INDEX idx_forum_user_user ON "forum_user" ("user");
 CREATE INDEX idx_forum_user_forum ON "forum_user" ("forum");
 CREATE INDEX idx_forum_user ON "forum_user" ("user", "forum");
-
-
-VACUUM ANALYSE;
