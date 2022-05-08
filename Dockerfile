@@ -2,7 +2,7 @@ FROM golang:1.15 AS build
 
 ADD . /app
 WORKDIR /app
-RUN go build ./cmd/main.go
+RUN go build ./cmd/forum/main.go
 
 FROM ubuntu:20.04
 
