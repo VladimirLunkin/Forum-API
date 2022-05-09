@@ -113,8 +113,7 @@ func (p *Prometheus) HandlerFunc() fasthttp.RequestHandler {
 
 		status := strconv.Itoa(ctx.Response.StatusCode())
 		elapsed := float64(time.Since(start)) / float64(time.Second)
-		ep := string(ctx.Method()) + "_" + uri
-		p.reqDur.WithLabelValues(status, ep).Observe(elapsed)
+		p.reqDur.WithLabelValues(status).Observe(elapsed)
 	}
 }
 
