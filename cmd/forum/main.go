@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	fasthttpprom "github.com/701search/fasthttp-prometheus-middleware"
 	"github.com/fasthttp/router"
 	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
@@ -13,6 +12,7 @@ import (
 	"tech-db-forum/internal/app/forum"
 	"tech-db-forum/internal/app/service"
 	"tech-db-forum/internal/app/user"
+	fasthttpprom "tech-db-forum/internal/pkg/Metrics"
 )
 
 type DBConfig struct {
