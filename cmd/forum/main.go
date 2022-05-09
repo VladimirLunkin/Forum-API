@@ -77,12 +77,7 @@ func main() {
 	p := fasthttpprom.NewPrometheus("")
 	p.Use(r)
 
-	r.GET("/health", func(ctx *fasthttp.RequestCtx) {
-		ctx.SetStatusCode(200)
-		ctx.SetBody([]byte(`{"status": "pass"}`))
-		log.Println(string(ctx.Request.URI().Path()))
-	})
-
+	// connect db
 	db := getPostgres(config.DB)
 
 	user.SetUserRouting(r, &user.Handlers{
