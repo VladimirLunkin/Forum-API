@@ -103,5 +103,5 @@ func main() {
 
 	fmt.Printf("Start server on port %s\n", config.Port)
 
-	log.Fatal(fasthttp.ListenAndServe(config.Addr(), r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(config.Addr(), p.Handler))
 }
