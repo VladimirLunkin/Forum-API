@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	fasthttpprom "github.com/701search/fasthttp-prometheus-middleware"
 	"github.com/fasthttp/router"
 	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
@@ -71,6 +72,16 @@ func main() {
 	logger := zapLogger.Sugar()
 
 	r := router.New()
+
+	// metrics
+	p := fasthttpprom.NewPrometheus("")
+	p.Use(r)
+
+	r.GET("/health", func(ctx *fasthttp.RequestCtx) {
+		ctx.SetStatusCode(200)
+		ctx.SetBody([]byte(`{"status": "pass"}`))
+		log.Println(string(ctx.Request.URI().Path()))
+	})
 
 	db := getPostgres(config.DB)
 
